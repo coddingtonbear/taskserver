@@ -715,8 +715,8 @@ void Daemon::validate_account(const std::string& user) const {
   int is_active = ntohl(*((uint32_t*) is_active_ptr));
   int sync_enabled = ntohl(*((uint32_t*) sync_enabled_ptr));
 
-  int min_tos_version = atoi(_config.get("inthe_am.min_tos"));
-  int min_privacy_policy = atoi(_config.get("inthe_am.min_tos"));
+  int min_tos_version = atoi(_config.get("inthe_am.min_tos").c_str());
+  int min_privacy_policy = atoi(_config.get("inthe_am.min_tos").c_str());
 
   if(tos_version < min_tos_version) {
     throw std::string ("Please visit https://inthe.am to accept the latest terms of service.");
