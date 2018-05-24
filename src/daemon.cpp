@@ -641,12 +641,12 @@ void Daemon::validate_account(const std::string& user) const {
     user_id_fnum,
     privacy_policy_fnum,
     is_active_fnum,
-    sync_enabled_fnum;
+    sync_permitted_fnum;
   char *tos_version_ptr,
     *user_id_ptr,
     *privacy_policy_ptr,
     *is_active_ptr,
-    *sync_enabled_ptr;
+    *sync_permitted_ptr;
 
   conninfo = _config.get("inthe_am.db").c_str();
 
@@ -667,7 +667,7 @@ void Daemon::validate_account(const std::string& user) const {
         m.tos_version, \
         m.privacy_policy_version, \
         CAST(u.is_active as integer) as is_active, \
-        CAST(s.sync_enabled as integer) as sync_enabled \
+        CAST(s.sync_permitted as integer) as sync_permitted \
     FROM taskmanager_usermetadata m\
     INNER JOIN\
         auth_user u\
@@ -689,7 +689,7 @@ void Daemon::validate_account(const std::string& user) const {
   user_id_fnum = PQfnumber(res, "user_id");
   privacy_policy_fnum = PQfnumber(res, "privacy_policy_version");
   is_active_fnum = PQfnumber(res, "is_active");
-  sync_enabled_fnum = PQfnumber(res, "sync_enabled");
+  sync_permitted_fnum = PQfnumber(res, "sync_permitted");
 
   if (PQresultStatus(res) != PGRES_TUPLES_OK) {
     PQclear(res);
@@ -707,13 +707,13 @@ void Daemon::validate_account(const std::string& user) const {
   user_id_ptr = PQgetvalue(res, 0, user_id_fnum);
   privacy_policy_ptr = PQgetvalue(res, 0, privacy_policy_fnum);
   is_active_ptr = PQgetvalue(res, 0, is_active_fnum);
-  sync_enabled_ptr = PQgetvalue(res, 0, sync_enabled_fnum);
+  sync_permitted_ptr = PQgetvalue(res, 0, sync_permitted_fnum);
 
   int tos_version = ntohl(*((uint32_t*) tos_version_ptr));
   int privacy_policy = ntohl(*((uint32_t*) privacy_policy_ptr));
   int user_id = ntohl(*((uint32_t*) user_id_ptr));
   int is_active = ntohl(*((uint32_t*) is_active_ptr));
-  int sync_enabled = ntohl(*((uint32_t*) sync_enabled_ptr));
+  int sync_permitted = ntohl(*((uint32_t*) sync_permitted_ptr));
 
   int min_tos_version = atoi(_config.get("inthe_am.min_tos").c_str());
   int min_privacy_policy = atoi(_config.get("inthe_am.min_tos").c_str());
@@ -733,7 +733,7 @@ void Daemon::validate_account(const std::string& user) const {
     PQfinish(conn);
     throw std::string ("Your account is currently inactive.");
   }
-  if(! sync_enabled) {
+  if(! sync_permitted) {
     PQclear(res);
     PQfinish(conn);
     throw std::string ("Synchronization is currently disabled for your account; contact support at support@inthe.am.");
