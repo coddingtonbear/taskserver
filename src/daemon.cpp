@@ -692,14 +692,14 @@ void Daemon::validate_account(const std::string& user) const {
   );
 
   if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-    fprintf(stderr, "Select failed: %s", PQerrorMessage(conn));
     PQclear(res);
-
     PQfinish(conn);
     throw std::string ("Server Error (0x01): please retry later.");
   }
 
   if (PQntuples(res) == 0) {
+    PQclear(res);
+    PQfinish(conn);
     throw std::string ("Account not found.");
   }
 
@@ -719,15 +719,23 @@ void Daemon::validate_account(const std::string& user) const {
   int min_privacy_policy = atoi(_config.get("inthe_am.min_tos").c_str());
 
   if(tos_version < min_tos_version) {
+    PQclear(res);
+    PQfinish(conn);
     throw std::string ("Please visit https://inthe.am to accept the latest terms of service.");
   }
   if(privacy_policy < privacy_policy) {
+    PQclear(res);
+    PQfinish(conn);
     throw std::string ("Please visit https://inthe.am to accept the latest privacy policy.");
   }
   if(! is_active) {
+    PQclear(res);
+    PQfinish(conn);
     throw std::string ("Your account is currently inactive.");
   }
   if(! sync_enabled) {
+    PQclear(res);
+    PQfinish(conn);
     throw std::string ("Synchronization is currently disabled for your account; contact support at support@inthe.am.");
   }
 
