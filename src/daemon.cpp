@@ -631,7 +631,7 @@ std::string Daemon::generate_payload (
   return payload;
 }
 
-void Daemon::validate_account(const std::string& user) {
+void Daemon::validate_account(const std::string& user) const {
   const char *conninfo;
   PGconn *conn;
   PGresult *res;
