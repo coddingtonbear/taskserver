@@ -648,12 +648,6 @@ void Daemon::validate_account(const std::string& user) const {
     *is_active_ptr,
     *sync_enabled_ptr;
 
-  tos_version_fnum = PQfnumber(res, "tos_version");
-  user_id_fnum = PQfnumber(res, "user_id");
-  privacy_policy_fnum = PQfnumber(res, "privacy_policy_version");
-  is_active_fnum = PQfnumber(res, "is_active");
-  sync_enabled_fnum = PQfnumber(res, "sync_enabled");
-
   conninfo = _config.get("inthe_am.db").c_str();
 
   conn = PQconnectdb(conninfo);
@@ -690,6 +684,12 @@ void Daemon::validate_account(const std::string& user) const {
     NULL,
     1
   );
+
+  tos_version_fnum = PQfnumber(res, "tos_version");
+  user_id_fnum = PQfnumber(res, "user_id");
+  privacy_policy_fnum = PQfnumber(res, "privacy_policy_version");
+  is_active_fnum = PQfnumber(res, "is_active");
+  sync_enabled_fnum = PQfnumber(res, "sync_enabled");
 
   if (PQresultStatus(res) != PGRES_TUPLES_OK) {
     PQclear(res);
