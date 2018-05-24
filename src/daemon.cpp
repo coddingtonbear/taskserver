@@ -41,6 +41,7 @@
 #include <Duration.h>
 #include <Color.h>
 #include <Task.h>
+
 #ifdef HAVE_COMMIT
 #include <commit.h>
 #endif
@@ -48,6 +49,12 @@
 #include <util.h>
 #include <taskd.h>
 #include <i18n.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <netinet/in.h>
+#include "libpq-fe.h"
 
 // Indicates that signals were caught.
 extern bool _sighup;
@@ -70,6 +77,7 @@ private:
   void parse_payload (const std::string&, std::vector <std::string>&, std::string&) const;
   void load_server_data (const std::string&, const std::string&, std::vector <std::string>&) const;
   void append_server_data (const std::string&, const std::string&, const std::vector <std::string>&) const;
+  void validate_account (const std::string&) const;
   unsigned int find_branch_point (const std::vector <std::string>&, const std::string&) const;
   void extract_subset (const std::vector <std::string>&, const unsigned int, std::vector <Task>&) const;
   bool contains (const std::vector <Task>&, const std::string&) const;
@@ -322,6 +330,8 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
   std::vector <std::string> client_data;               // Incoming client data.
   std::string client_key;                              // Incoming client key.
   parse_payload (in.getPayload (), client_data, client_key);
+
+  validate_account(user);
 
   // Load all user data.
   std::vector <std::string> server_data;               // Data loaded on server.
@@ -619,6 +629,110 @@ std::string Daemon::generate_payload (
   payload += key + "\n";
 
   return payload;
+}
+
+void Daemon::validate_account(const std::string& user) {
+  const char *conninfo;
+  PGconn *conn;
+  PGresult *res;
+  const char *paramValues[1];
+
+  int tos_version_fnum,
+    user_id_fnum,
+    privacy_policy_fnum,
+    is_active_fnum,
+    sync_enabled_fnum;
+  char *tos_version_ptr,
+    *user_id_ptr,
+    *privacy_policy_ptr,
+    *is_active_ptr,
+    *sync_enabled_ptr;
+
+  tos_version_fnum = PQfnumber(res, "tos_version");
+  user_id_fnum = PQfnumber(res, "user_id");
+  privacy_policy_fnum = PQfnumber(res, "privacy_policy_version");
+  is_active_fnum = PQfnumber(res, "is_active");
+  sync_enabled_fnum = PQfnumber(res, "sync_enabled");
+
+  conninfo = _config.get("inthe_am.db");
+
+  conn = PQconnectdb(conninfo);
+  if(PQstatus(conn) != CONNECTION_OK) {
+    fprintf(stderr, "Connection failed: %s", PQerrorMessage(conn));
+
+    PQfinish(conn);
+    throw std::string ("Server Error (0x00): please retry later.");
+  }
+
+  paramValues[0] = user;
+  res = PQexecParams(
+    conn,
+    "\
+    SELECT \
+        m.user_id, \
+        m.tos_version, \
+        m.privacy_policy_version, \
+        CAST(u.is_active as integer) as is_active, \
+        CAST(s.sync_enabled as integer) as sync_enabled \
+    FROM taskmanager_usermetadata m\
+    INNER JOIN\
+        auth_user u\
+        on (u.id = m.user_id)\
+    INNER JOIN\
+        taskmanager_taskstore s\
+        on (u.id = s.user_id)\
+    WHERE u.username = $1\
+    ",
+    1,
+    NULL,
+    paramValues,
+    NULL,
+    NULL,
+    1
+  );
+
+  if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+    fprintf(stderr, "Select failed: %s", PQerrorMessage(conn));
+    PQclear(res);
+
+    PQfinish(conn);
+    throw std::string ("Server Error (0x01): please retry later.");
+  }
+
+  if (PGntuples(res) == 0) {
+    throw std::string ("Account not found.");
+  }
+
+  tos_version_ptr = PQgetvalue(res, i, tos_version_fnum);
+  user_id_ptr = PQgetvalue(res, i, user_id_fnum);
+  privacy_policy_ptr = PQgetvalue(res, i, privacy_policy_fnum);
+  is_active_ptr = PQgetvalue(res, i, is_active_fnum);
+  sync_enabled_ptr = PQgetvalue(res, i, sync_enabled_fnum);
+
+  int tos_version = ntohl(*((uint32_t*) tos_version_ptr));
+  int privacy_policy = ntohl(*((uint32_t*) privacy_policy_ptr));
+  int user_id = ntohl(*((uint32_t*) user_id_ptr));
+  int is_active = ntohl(*((uint32_t*) is_active_ptr));
+  int sync_enabled = ntohl(*((uint32_t*) sync_enabled_ptr));
+
+  int min_tos_version = atoi(_config.get('inthe_am.min_tos')
+  int min_privacy_policy = atoi(_config.get('inthe_am.min_tos')
+
+  if(tos_version < min_tos_version) {
+    throw std::string ("Please visit https://inthe.am to accept the latest terms of service.");
+  }
+  if(privacy_policy < privacy_policy) {
+    throw std::string ("Please visit https://inthe.am to accept the latest privacy policy.");
+  }
+  if(! is_active) {
+    throw std::string ("Your account is currently inactive.");
+  }
+  if(! sync_enabled) {
+    throw std::string ("Synchronization is currently disabled for your account; contact support at support@inthe.am.");
+  }
+
+  PQclear(res);
+  PQfinish(conn);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
