@@ -716,14 +716,14 @@ void Daemon::validate_account(const std::string& user) const {
   int sync_permitted = ntohl(*((uint32_t*) sync_permitted_ptr));
 
   int min_tos_version = atoi(_config.get("inthe_am.min_tos").c_str());
-  int min_privacy_policy = atoi(_config.get("inthe_am.min_tos").c_str());
+  int min_privacy_policy = atoi(_config.get("inthe_am.min_privacy").c_str());
 
   if(tos_version < min_tos_version) {
     PQclear(res);
     PQfinish(conn);
     throw std::string ("Please visit https://inthe.am to accept the latest terms of service.");
   }
-  if(privacy_policy < privacy_policy) {
+  if(privacy_policy < min_privacy_policy) {
     PQclear(res);
     PQfinish(conn);
     throw std::string ("Please visit https://inthe.am to accept the latest privacy policy.");
