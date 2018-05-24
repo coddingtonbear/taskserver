@@ -654,7 +654,7 @@ void Daemon::validate_account(const std::string& user) const {
   is_active_fnum = PQfnumber(res, "is_active");
   sync_enabled_fnum = PQfnumber(res, "sync_enabled");
 
-  conninfo = _config.get("inthe_am.db");
+  conninfo = _config.get("inthe_am.db").c_str();
 
   conn = PQconnectdb(conninfo);
   if(PQstatus(conn) != CONNECTION_OK) {
@@ -664,7 +664,7 @@ void Daemon::validate_account(const std::string& user) const {
     throw std::string ("Server Error (0x00): please retry later.");
   }
 
-  paramValues[0] = user;
+  paramValues[0] = user.c_str();
   res = PQexecParams(
     conn,
     "\
@@ -699,15 +699,15 @@ void Daemon::validate_account(const std::string& user) const {
     throw std::string ("Server Error (0x01): please retry later.");
   }
 
-  if (PGntuples(res) == 0) {
+  if (PQntuples(res) == 0) {
     throw std::string ("Account not found.");
   }
 
-  tos_version_ptr = PQgetvalue(res, i, tos_version_fnum);
-  user_id_ptr = PQgetvalue(res, i, user_id_fnum);
-  privacy_policy_ptr = PQgetvalue(res, i, privacy_policy_fnum);
-  is_active_ptr = PQgetvalue(res, i, is_active_fnum);
-  sync_enabled_ptr = PQgetvalue(res, i, sync_enabled_fnum);
+  tos_version_ptr = PQgetvalue(res, 0, tos_version_fnum);
+  user_id_ptr = PQgetvalue(res, 0, user_id_fnum);
+  privacy_policy_ptr = PQgetvalue(res, 0, privacy_policy_fnum);
+  is_active_ptr = PQgetvalue(res, 0, is_active_fnum);
+  sync_enabled_ptr = PQgetvalue(res, 0, sync_enabled_fnum);
 
   int tos_version = ntohl(*((uint32_t*) tos_version_ptr));
   int privacy_policy = ntohl(*((uint32_t*) privacy_policy_ptr));
