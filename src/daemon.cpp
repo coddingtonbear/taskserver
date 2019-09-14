@@ -634,7 +634,10 @@ std::string Daemon::generate_payload (
 }
 
 void Daemon::validate_account(const std::string& user) const {
-  const char *conninfo;
+  std::string db_host;
+  std::string db_name;
+  std::string db_user;
+  std::string db_password;
   PGconn *conn;
   PGresult *res;
   const char *paramValues[1];
@@ -650,9 +653,14 @@ void Daemon::validate_account(const std::string& user) const {
     *is_active_ptr,
     *sync_permitted_ptr;
 
-  conninfo = _config.get("inthe_am.db").c_str();
+  db_host = _config.get("inthe_am.db.host").c_str();
+  db_name = _config.get("inthe_am.db.name").c_str();
+  db_user = _config.get("inthe_am.db.user").c_str();
+  db_password = _config.get("inthe_am.db.password").c_str();
 
-  conn = PQconnectdb(conninfo);
+  std::string conninfo = "host=" + db_host + " dbname=" + db_name + " user=" + db_user + " password=" + db_password;
+
+  conn = PQconnectdb(conninfo.c_str());
   if(PQstatus(conn) != CONNECTION_OK) {
     fprintf(stderr, "Connection failed: %s", PQerrorMessage(conn));
 
@@ -713,7 +721,6 @@ void Daemon::validate_account(const std::string& user) const {
 
   int tos_version = ntohl(*((uint32_t*) tos_version_ptr));
   int privacy_policy = ntohl(*((uint32_t*) privacy_policy_ptr));
-  int user_id = ntohl(*((uint32_t*) user_id_ptr));
   int is_active = ntohl(*((uint32_t*) is_active_ptr));
   int sync_permitted = ntohl(*((uint32_t*) sync_permitted_ptr));
 
