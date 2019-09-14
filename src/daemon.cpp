@@ -229,7 +229,9 @@ void Daemon::handler (const std::string& input, std::string& output)
   catch (...)
   {
     if (_log)
-      _log->format ("[%d] Unknown error", _txn_count);
+      _log->format ("[%d] Unknown error; terminating!", _txn_count);
+
+    exit(10);
   }
 
   _bytes_in  += input.length ();
