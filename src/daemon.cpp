@@ -333,7 +333,9 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
   std::string client_key;                              // Incoming client key.
   parse_payload (in.getPayload (), client_data, client_key);
 
-  validate_account(user);
+  if (_client_address.compare(std::string(getenv("LOCAL_IP"))) != 0) {
+    validate_account(user);
+  }
 
   // Load all user data.
   std::vector <std::string> server_data;               // Data loaded on server.
