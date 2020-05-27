@@ -117,11 +117,6 @@ SET (TASKD_DOCDIR  share/doc/taskd CACHE STRING "Installation directory for doc 
 SET (TASKD_EXTDIR  libexec/taskd   CACHE STRING "Installation directory for the extensions")
 SET (TASKD_BINDIR  bin             CACHE STRING "Installation directory for the program")
 
-message ("-- Looking for PostgreSQL")
-find_package(PostgreSQL REQUIRED)
-set (TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${PostgreSQL_INCLUDE_DIRS})
-set (TASKD_LIBRARIES    ${TASKD_LIBRARIES}    ${PostgreSQL_LIBRARIES})
-
 message ("-- Looking for GnuTLS")
 find_package (GnuTLS REQUIRED)
 if (GNUTLS_FOUND)
