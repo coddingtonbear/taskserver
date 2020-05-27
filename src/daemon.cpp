@@ -50,12 +50,6 @@
 #include <taskd.h>
 #include <i18n.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <netinet/in.h>
-#include "libpq-fe.h"
-
 // Indicates that signals were caught.
 extern bool _sighup;
 extern bool _sigusr1;
@@ -77,7 +71,6 @@ private:
   void parse_payload (const std::string&, std::vector <std::string>&, std::string&) const;
   void load_server_data (const std::string&, const std::string&, std::vector <std::string>&) const;
   void append_server_data (const std::string&, const std::string&, const std::vector <std::string>&) const;
-  void validate_account (const std::string&) const;
   unsigned int find_branch_point (const std::vector <std::string>&, const std::string&) const;
   void extract_subset (const std::vector <std::string>&, const unsigned int, std::vector <Task>&) const;
   bool contains (const std::vector <Task>&, const std::string&) const;
@@ -332,10 +325,6 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
   std::vector <std::string> client_data;               // Incoming client data.
   std::string client_key;                              // Incoming client key.
   parse_payload (in.getPayload (), client_data, client_key);
-
-  if (_client_address.compare(std::string(getenv("LOCAL_IP"))) != 0) {
-    validate_account(user);
-  }
 
   // Load all user data.
   std::vector <std::string> server_data;               // Data loaded on server.
@@ -633,125 +622,6 @@ std::string Daemon::generate_payload (
   payload += key + "\n";
 
   return payload;
-}
-
-void Daemon::validate_account(const std::string& user) const {
-  std::string db_host;
-  std::string db_name;
-  std::string db_user;
-  std::string db_password;
-  PGconn *conn;
-  PGresult *res;
-  const char *paramValues[1];
-
-  int tos_version_fnum,
-    user_id_fnum,
-    privacy_policy_fnum,
-    is_active_fnum,
-    sync_permitted_fnum;
-  char *tos_version_ptr,
-    *user_id_ptr,
-    *privacy_policy_ptr,
-    *is_active_ptr,
-    *sync_permitted_ptr;
-
-  db_host = _config.get("inthe_am.db.host").c_str();
-  db_name = _config.get("inthe_am.db.name").c_str();
-  db_user = _config.get("inthe_am.db.user").c_str();
-  db_password = _config.get("inthe_am.db.password").c_str();
-
-  std::string conninfo = "host=" + db_host + " dbname=" + db_name + " user=" + db_user + " password=" + db_password;
-
-  conn = PQconnectdb(conninfo.c_str());
-  if(PQstatus(conn) != CONNECTION_OK) {
-    fprintf(stderr, "Connection failed: %s", PQerrorMessage(conn));
-
-    PQfinish(conn);
-    throw std::string ("Server Error (0x00): please retry later.");
-  }
-
-  paramValues[0] = user.c_str();
-  res = PQexecParams(
-    conn,
-    "\
-    SELECT \
-        m.user_id, \
-        m.tos_version, \
-        m.privacy_policy_version, \
-        CAST(u.is_active as integer) as is_active, \
-        CAST(s.sync_permitted as integer) as sync_permitted \
-    FROM taskmanager_usermetadata m\
-    INNER JOIN\
-        auth_user u\
-        on (u.id = m.user_id)\
-    INNER JOIN\
-        taskmanager_taskstore s\
-        on (u.id = s.user_id)\
-    WHERE u.username = $1\
-    ",
-    1,
-    NULL,
-    paramValues,
-    NULL,
-    NULL,
-    1
-  );
-
-  tos_version_fnum = PQfnumber(res, "tos_version");
-  user_id_fnum = PQfnumber(res, "user_id");
-  privacy_policy_fnum = PQfnumber(res, "privacy_policy_version");
-  is_active_fnum = PQfnumber(res, "is_active");
-  sync_permitted_fnum = PQfnumber(res, "sync_permitted");
-
-  if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Server Error (0x01): please retry later.");
-  }
-
-  if (PQntuples(res) == 0) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Account not found.");
-  }
-
-  tos_version_ptr = PQgetvalue(res, 0, tos_version_fnum);
-  user_id_ptr = PQgetvalue(res, 0, user_id_fnum);
-  privacy_policy_ptr = PQgetvalue(res, 0, privacy_policy_fnum);
-  is_active_ptr = PQgetvalue(res, 0, is_active_fnum);
-  sync_permitted_ptr = PQgetvalue(res, 0, sync_permitted_fnum);
-
-  int tos_version = ntohl(*((uint32_t*) tos_version_ptr));
-  int privacy_policy = ntohl(*((uint32_t*) privacy_policy_ptr));
-  int is_active = ntohl(*((uint32_t*) is_active_ptr));
-  int sync_permitted = ntohl(*((uint32_t*) sync_permitted_ptr));
-
-  int min_tos_version = atoi(_config.get("inthe_am.min_tos").c_str());
-  int min_privacy_policy = atoi(_config.get("inthe_am.min_privacy").c_str());
-
-  if(tos_version < min_tos_version) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Please visit https://inthe.am to accept the latest terms of service.");
-  }
-  if(privacy_policy < min_privacy_policy) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Please visit https://inthe.am to accept the latest privacy policy.");
-  }
-  if(! is_active) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Your account is currently inactive.");
-  }
-  if(! sync_permitted) {
-    PQclear(res);
-    PQfinish(conn);
-    throw std::string ("Synchronization is currently disabled for your account; contact support at support@inthe.am.");
-  }
-
-  PQclear(res);
-  PQfinish(conn);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
