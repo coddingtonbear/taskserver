@@ -324,11 +324,11 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
                   clientName.c_str (),
                   _client_address.c_str (),
                   _client_port);
-    //_log->format (
-    //  "[%d] Certificate fingerprint: '%s'",
-    //  _txn_count,
-    //  txn.get_certificate_fingerprint().c_str()
-    //);
+    _log->format (
+      "[%d] Certificate fingerprint: '%s'",
+      _txn_count,
+      txn.get_certificate_fingerprint().c_str()
+    );
   }
 
   // Redirect if instructed.
