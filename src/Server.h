@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <string>
 #include <ConfigFile.h>
+#include <TLSServer.h>
 #include <Log.h>
 
 class Server
@@ -59,7 +60,7 @@ public:
 
   void stats (int&, time_t&, double&);
 
-  virtual void handler (const std::string&, std::string&) = 0;
+  virtual void handler (TLSTransaction txn, const std::string&, std::string&) = 0;
 
 protected:
   void daemonize ();

@@ -427,6 +427,32 @@ void TLSTransaction::limit (int max)
   _limit = max;
 }
 
+std::string TLSTransaction::get_certificate_fingerprint() {
+  gnutls_datum_t fingerprintHolder;
+
+  uint8_t fingerprint[512];
+  size_t fingerprintSize = sizeof(fingerprint);
+  char fingerprintHex[512];
+  size_t fingerprintHexSize = sizeof(fingerprintHex);
+
+  const int result = gnutls_x509_crt_get_fingerprint(
+    _creds,
+    GNUTLS_DIG_SHA512,
+    fingerprint,
+    &fingerprintSize
+  );
+  if (result <= 0) {
+    return "";
+  }
+
+  fingerprintHolder.data = fingerprint;
+  fingerprintHolder.size = fingerprintSize;
+
+  gnutls_hex_encode(&fingerprintHolder, fingerprintHex, &fingerprintHexSize);
+
+  return std::string(fingerprintHex);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 int TLSTransaction::verify_certificate () const
 {
@@ -439,6 +465,9 @@ int TLSTransaction::verify_certificate () const
   // This verification function uses the trusted CAs in the credentials
   // structure. So you must have installed one or more CA certificates.
   unsigned int status = 0;
+
+  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&_creds);
+
 #if GNUTLS_VERSION_NUMBER >= 0x030104
   int ret = gnutls_certificate_verify_peers3 (_session, NULL, &status);
   if (ret < 0)

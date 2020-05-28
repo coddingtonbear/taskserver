@@ -277,7 +277,7 @@ void Server::beginServer ()
 
       // Call the derived class handler.
       std::string output;
-      handler (input, output);
+      handler (tx, input, output);
       if (output.length ())
         tx.send (output);
 

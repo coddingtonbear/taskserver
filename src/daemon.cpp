@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <Server.h>
+#include <TLSServer.h>
 #include <Timer.h>
 #include <Database.h>
 #include <Log.h>
@@ -64,11 +65,11 @@ class Daemon : public Server
 {
 public:
   Daemon (Config&);
-  void handler (const std::string& input, std::string& output);
+  void handler (TLSTransaction txn, const std::string& input, std::string& output);
 
 private:
-  void handle_statistics (const Msg&, Msg&);
-  void handle_sync       (const Msg&, Msg&);
+  void handle_statistics (TLSTransaction txn, const Msg&, Msg&);
+  void handle_sync       (TLSTransaction txn, const Msg&, Msg&);
 
 private:
   void parse_payload (const std::string&, std::vector <std::string>&, std::string&) const;
@@ -115,7 +116,7 @@ Daemon::Daemon (Config& settings)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Daemon::handler (const std::string& input, std::string& output)
+void Daemon::handler (const TLSTransaction txn, const std::string& input, std::string& output)
 {
   ++_txn_count;
 
@@ -173,8 +174,8 @@ void Daemon::handler (const std::string& input, std::string& output)
 
     // Handle or reject all message types.
     std::string type = in.get ("type");
-         if (type == "statistics") handle_statistics (in, out);
-    else if (type == "sync")       handle_sync       (in, out);
+         if (type == "statistics") handle_statistics (txn, in, out);
+    else if (type == "sync")       handle_sync       (txn, in, out);
     else
     {
       if (_log)
@@ -236,7 +237,7 @@ void Daemon::handler (const std::string& input, std::string& output)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Statistics request from dev.
-void Daemon::handle_statistics (const Msg& in, Msg& out)
+void Daemon::handle_statistics (TLSTransaction txn, const Msg& in, Msg& out)
 {
   if (! _db.authenticate (in, out))
     return;
@@ -298,7 +299,7 @@ void Daemon::handle_statistics (const Msg& in, Msg& out)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sync request.
-void Daemon::handle_sync (const Msg& in, Msg& out)
+void Daemon::handle_sync (TLSTransaction txn, const Msg& in, Msg& out)
 {
   HighResTimer timer;
   timer.start ();
@@ -315,7 +316,7 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
   std::string password = in.get ("key");
   std::string clientName = in.get("client");
 
-  if (_log)
+  if (_log) {
     _log->format ("[%d] 'sync' from '%s/%s' using '%s' at %s:%d",
                   _txn_count,
                   org.c_str (),
@@ -323,6 +324,12 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
                   clientName.c_str (),
                   _client_address.c_str (),
                   _client_port);
+    _log->format (
+      "[%d] Certificate fingerprint: '%s'",
+      _txn_count,
+      txn.get_certificate_fingerprint().c_str()
+    );
+  }
 
   // Redirect if instructed.
   if (_db.redirect (org, out))
