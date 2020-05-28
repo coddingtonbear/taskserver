@@ -42,6 +42,9 @@
 #include <Color.h>
 #include <Task.h>
 
+#include <redox.hpp>
+#include <json/json.h>
+
 #ifdef HAVE_COMMIT
 #include <commit.h>
 #endif
@@ -297,6 +300,9 @@ void Daemon::handle_statistics (const Msg& in, Msg& out)
 // Sync request.
 void Daemon::handle_sync (const Msg& in, Msg& out)
 {
+  HighResTimer timer;
+  timer.start ();
+
   if (! _db.authenticate (in, out))
     return;
 
@@ -307,13 +313,14 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
   std::string org      = in.get ("org");
   std::string user     = in.get ("user");
   std::string password = in.get ("key");
+  std::string clientName = in.get("client");
 
   if (_log)
     _log->format ("[%d] 'sync' from '%s/%s' using '%s' at %s:%d",
                   _txn_count,
                   org.c_str (),
                   user.c_str (),
-                  in.get ("client").c_str (),
+                  clientName.c_str (),
                   _client_address.c_str (),
                   _client_port);
 
@@ -458,6 +465,37 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
     _log->format ("[%d] No change", _txn_count);
     out.set ("code",   201);
     out.set ("status", taskd_error (201));
+  }
+
+  redox::Redox rdx;
+  if(rdx.connect(getenv("REDIS_HOST"), 6379)){
+    Json::Value description;
+    description["action"] = "sync";
+    description["username"] = user;
+    description["org"] = org;
+    description["client"] = clientName;
+    description["ip"] = _client_address;
+    description["port"] = _client_port;
+    description["client_key"] = client_key;
+    description["record_count"] = Json::Value::UInt64(server_data.size());
+    description["branch_point"] = client_key;
+    description["branch_record_count"] = branch_point;
+    description["delta_count"] = Json::Value::UInt64(server_subset.size());
+    description["stored_count"] = store_count;
+    description["merged_count"] = merge_count;
+    description["service_duration"] = timer.total();
+    Json::StreamWriterBuilder builder;
+    std::string message = Json::writeString(builder, description);
+
+    std::string queue = "sync." + user;
+    _log->format(
+      "[%d] Emitting sync notification to redis via %s",
+      _txn_count,
+      queue
+    );
+    rdx.publish(queue, message);
+
+    rdx.disconnect();
   }
 }
 
