@@ -91,7 +91,8 @@ private:
   std::string                 _address;
   int                         _port;
   enum TLSServer::trust_level _trust;
-	gnutls_x509_crt_t _creds;
+	// gnutls_x509_crt_t _creds;
+	gnutls_credentials_type_t _creds;
 };
 
 #endif
