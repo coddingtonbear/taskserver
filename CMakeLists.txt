@@ -128,63 +128,19 @@ if (GNUTLS_FOUND)
 endif (GNUTLS_FOUND)
 
 message ("-- Looking for hiredis")
-if(HIREDIS_INCLUDE_DIRS AND HIREDIS_LIBRARIES)
-  set(HIREDIS_FIND_QUIETLY TRUE)
-else()
-  find_path(
-    HIREDIS_INCLUDE_DIR
-    NAMES hiredis/hiredis.h
-    HINTS ${HIREDIS_ROOT_DIR}
-    PATH_SUFFIXES include)
-
-  find_library(
-    HIREDIS_LIBRARY
-    NAMES hiredis
-    HINTS ${HIREDIS_ROOT_DIR}
-    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-
-  set(HIREDIS_INCLUDE_DIRS ${HIREDIS_INCLUDE_DIR})
-  set(HIREDIS_LIBRARIES ${HIREDIS_LIBRARY})
-  set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${HIREDIS_INCLUDE_DIR})
-  set(TASKD_LIBRARIES    ${TASKD_LIBRARIES}    ${HIREDIS_LIBRARY})
-
-  include (FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(
-    hiredis DEFAULT_MSG HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
-
-  mark_as_advanced(HIREDIS_LIBRARY HIREDIS_INCLUDE_DIR)
-endif()
+find_package(hiredis REQUIRED)
+set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${HIREDIS_INCLUDE_DIR})
+set(TASKD_LIBRARIES    ${TASKD_LIBRARIES}    ${HIREDIS_LIBRARY})
 
 message ("-- Looking for libev")
-if(LIBEV_INCLUDE_DIRS AND LIBEV_LIBRARIES)
-  set(LIBEV_FIND_QUIETLY TRUE)
-else()
-  find_path(
-    LIBEV_INCLUDE_DIR
-    NAMES ev.h
-    HINTS ${LIBEV_ROOT_DIR}
-    PATH_SUFFIXES include)
+find_package(libev REQUIRED)
+set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${LIBEV_INCLUDE_DIR})
+set(TASKD_LIBRARIES    ${TASKD_LIBRARIES}    ${LIBEV_LIBRARY})
 
-  find_library(
-    LIBEV_LIBRARY
-    NAME ev
-    HINTS ${LIBEV_ROOT_DIR}
-    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-
-  set(LIBEV_INCLUDE_DIRS ${LIBEV_INCLUDE_DIR})
-  set(LIBEV_LIBRARIES ${LIBEV_LIBRARY})
-  set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${LIBEV_INCLUDE_DIR})
-  set(TASKD_LIBRARIES    ${TASKD_LIBRARIES}    ${LIBEV_LIBRARY})
-
-  include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(
-    libev DEFAULT_MSG LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
-
-  mark_as_advanced(LIBEV_LIBRARY LIBEV_INCLUDE_DIR)
-endif()
-
-# Adding library for redox
-set(TASKD_LIBRARIES ${TASKD_LIBRARIES} "libredox.so")
+message ("-- Looking for redox")
+find_package(redox REQUIRED)
+set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${REDOX_INCLUDE_DIR})
+set(TASKD_LIBRARIES ${TASKD_LIBRARIES} ${REDOX_LIBRARY})
 
 message ("-- Looking for JsonCpp")
 find_package(JsonCpp REQUIRED)
