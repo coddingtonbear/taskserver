@@ -456,7 +456,7 @@ std::string TLSTransaction::get_certificate_fingerprint() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int TLSTransaction::verify_certificate () const
+int TLSTransaction::verify_certificate ()
 {
   if (_trust == TLSServer::allow_all)
     return 0;
@@ -548,7 +548,10 @@ int TLSTransaction::verify_certificate () const
   if (status != 0)
     return GNUTLS_E_CERTIFICATE_ERROR;
 
-  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&_creds);
+  gnutls_credentials_type_t creds;
+  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&creds);
+
+  _creds = creds;
 
   // Continue handshake.
   return 0;
