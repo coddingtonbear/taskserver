@@ -435,6 +435,7 @@ std::string TLSTransaction::get_certificate_fingerprint() {
   char fingerprintHex[512];
   size_t fingerprintHexSize = sizeof(fingerprintHex);
 
+  /*
   const int result = gnutls_x509_crt_get_fingerprint(
     _creds,
     GNUTLS_DIG_SHA512,
@@ -449,6 +450,7 @@ std::string TLSTransaction::get_certificate_fingerprint() {
   fingerprintHolder.size = fingerprintSize;
 
   gnutls_hex_encode(&fingerprintHolder, fingerprintHex, &fingerprintHexSize);
+  */
 
   return std::string(fingerprintHex);
 }
