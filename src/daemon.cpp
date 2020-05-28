@@ -467,6 +467,7 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
     out.set ("status", taskd_error (201));
   }
 
+  timer.stop();
   redox::Redox rdx;
   if(rdx.connect(getenv("REDIS_HOST"), 6379)){
     Json::Value description;
@@ -491,7 +492,7 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
     _log->format(
       "[%d] Emitting sync notification to redis via %s",
       _txn_count,
-      queue
+      queue.c_str()
     );
     rdx.publish(queue, message);
 
