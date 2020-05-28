@@ -466,8 +466,6 @@ int TLSTransaction::verify_certificate () const
   // structure. So you must have installed one or more CA certificates.
   unsigned int status = 0;
 
-  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&_creds);
-
 #if GNUTLS_VERSION_NUMBER >= 0x030104
   int ret = gnutls_certificate_verify_peers3 (_session, NULL, &status);
   if (ret < 0)
@@ -547,6 +545,8 @@ int TLSTransaction::verify_certificate () const
 
   if (status != 0)
     return GNUTLS_E_CERTIFICATE_ERROR;
+
+  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&_creds);
 
   // Continue handshake.
   return 0;
