@@ -427,7 +427,7 @@ void TLSTransaction::limit (int max)
   _limit = max;
 }
 
-std::string TLSTransaction::get_certificate_fingerprint() {
+std::string TLSTransaction::get_certificate_fingerprint() const {
   gnutls_datum_t fingerprintHolder;
 
   uint8_t fingerprint[512];
@@ -435,9 +435,13 @@ std::string TLSTransaction::get_certificate_fingerprint() {
   char fingerprintHex[512];
   size_t fingerprintHexSize = sizeof(fingerprintHex);
 
+	// gnutls_x509_crt_t creds;
+  gnutls_credentials_type_t creds;
+  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&creds);
+
   /*
   const int result = gnutls_x509_crt_get_fingerprint(
-    _creds,
+    creds,
     GNUTLS_DIG_SHA512,
     fingerprint,
     &fingerprintSize
@@ -456,7 +460,7 @@ std::string TLSTransaction::get_certificate_fingerprint() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int TLSTransaction::verify_certificate ()
+int TLSTransaction::verify_certificate () const
 {
   if (_trust == TLSServer::allow_all)
     return 0;
@@ -547,11 +551,6 @@ int TLSTransaction::verify_certificate ()
 
   if (status != 0)
     return GNUTLS_E_CERTIFICATE_ERROR;
-
-  gnutls_credentials_type_t creds;
-  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&creds);
-
-  _creds = creds;
 
   // Continue handshake.
   return 0;

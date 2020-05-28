@@ -77,7 +77,7 @@ public:
   void debug ();
   void trust (const enum TLSServer::trust_level);
   void limit (int);
-  std::string get_certificate_fingerprint ();
+  std::string get_certificate_fingerprint () const;
   int verify_certificate () const;
   void send (const std::string&);
   void recv (std::string&);
@@ -91,8 +91,6 @@ private:
   std::string                 _address;
   int                         _port;
   enum TLSServer::trust_level _trust;
-	// gnutls_x509_crt_t _creds;
-	gnutls_credentials_type_t _creds;
 };
 
 #endif
