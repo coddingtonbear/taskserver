@@ -496,6 +496,11 @@ void Daemon::handle_sync (const Msg& in, Msg& out)
     rdx.publish(queue, message);
 
     rdx.disconnect();
+  } else {
+    _log->format(
+      "[%d] Could not connect to redis; not emitting sync message",
+      _txn_count
+    );
   }
 }
 
