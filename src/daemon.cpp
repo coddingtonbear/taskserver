@@ -65,11 +65,11 @@ class Daemon : public Server
 {
 public:
   Daemon (Config&);
-  void handler (TLSTransaction txn, const std::string& input, std::string& output);
+  void handler (const TLSTransaction& txn, const std::string& input, std::string& output);
 
 private:
-  void handle_statistics (TLSTransaction txn, const Msg&, Msg&);
-  void handle_sync       (TLSTransaction txn, const Msg&, Msg&);
+  void handle_statistics (const TLSTransaction& txn, const Msg&, Msg&);
+  void handle_sync       (const TLSTransaction& txn, const Msg&, Msg&);
 
 private:
   void parse_payload (const std::string&, std::vector <std::string>&, std::string&) const;
@@ -116,7 +116,7 @@ Daemon::Daemon (Config& settings)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Daemon::handler (const TLSTransaction txn, const std::string& input, std::string& output)
+void Daemon::handler (const TLSTransaction& txn, const std::string& input, std::string& output)
 {
   ++_txn_count;
 
@@ -237,7 +237,7 @@ void Daemon::handler (const TLSTransaction txn, const std::string& input, std::s
 
 ////////////////////////////////////////////////////////////////////////////////
 // Statistics request from dev.
-void Daemon::handle_statistics (TLSTransaction txn, const Msg& in, Msg& out)
+void Daemon::handle_statistics (const TLSTransaction& txn, const Msg& in, Msg& out)
 {
   if (! _db.authenticate (in, out))
     return;
@@ -299,7 +299,7 @@ void Daemon::handle_statistics (TLSTransaction txn, const Msg& in, Msg& out)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sync request.
-void Daemon::handle_sync (TLSTransaction txn, const Msg& in, Msg& out)
+void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
 {
   HighResTimer timer;
   timer.start ();

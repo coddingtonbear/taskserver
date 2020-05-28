@@ -60,7 +60,7 @@ public:
 
   void stats (int&, time_t&, double&);
 
-  virtual void handler (TLSTransaction txn, const std::string&, std::string&) = 0;
+  virtual void handler (const TLSTransaction& txn, const std::string&, std::string&) = 0;
 
 protected:
   void daemonize ();
