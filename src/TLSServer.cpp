@@ -435,16 +435,54 @@ std::string TLSTransaction::get_certificate_fingerprint() const {
   char fingerprintHex[512];
   size_t fingerprintHexSize = sizeof(fingerprintHex);
 
-	gnutls_x509_crt_t creds;
-  gnutls_credentials_get(_session, GNUTLS_CRD_CERTIFICATE, (void**)&creds);
+  const gnutls_datum_t *cert_list;
+  unsigned int cert_list_size;
+  gnutls_x509_crt_t cert;
+
+  if (gnutls_certificate_type_get(_session) != GNUTLS_CRT_X509) {
+    if (_debug)
+    {
+      std::cout << "s: Certificate in session is not X509.\n";
+    }
+    return "";
+  }
+
+  if (gnutls_x509_crt_init(&cert) < 0) {
+    if (_debug)
+    {
+      std::cout << "s: Error initializing certificate struct.\n";
+    }
+    return "";
+  }
+
+  cert_list = gnutls_certificate_get_peers(_session, &cert_list_size);
+  if (cert_list == NULL) {
+    if (_debug)
+    {
+      std::cout << "s: No certificate was found.\n";
+    }
+    return "";
+  }
+
+  if (gnutls_x509_crt_import(cert, &cert_list[0], GNUTLS_X509_FMT_DER) < 0) {
+    if (_debug)
+    {
+      std::cout << "s: Error parsing certificate.\n";
+    }
+    return "";
+  }
 
   const int result = gnutls_x509_crt_get_fingerprint(
-    creds,
+    cert,
     GNUTLS_DIG_SHA512,
     fingerprint,
     &fingerprintSize
   );
-  if (result <= 0) {
+  if (result != 0) {
+    if (_debug)
+    {
+      std::cout << "s: Error extracting fingerprint from certificate.\n";
+    }
     return "";
   }
 
@@ -452,6 +490,8 @@ std::string TLSTransaction::get_certificate_fingerprint() const {
   fingerprintHolder.size = fingerprintSize;
 
   gnutls_hex_encode(&fingerprintHolder, fingerprintHex, &fingerprintHexSize);
+
+  gnutls_x509_crt_deinit(cert);
 
   return std::string(fingerprintHex);
 }

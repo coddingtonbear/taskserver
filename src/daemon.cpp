@@ -53,6 +53,7 @@
 #include <util.h>
 #include <taskd.h>
 #include <i18n.h>
+#include <sqlite3.h> 
 
 // Indicates that signals were caught.
 extern bool _sighup;
@@ -86,6 +87,11 @@ private:
   time_t last_modification (const Task&) const;
   void patch (Task&, const Task&, const Task&) const;
   void get_totals (long&, long&, long&);
+  bool certificate_is_allowed_for_user(
+      std::string org_name,
+      std::string user_name,
+      std::string fingerprint
+  );
 
 public:
   Database _db;
@@ -315,6 +321,7 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
   std::string user     = in.get ("user");
   std::string password = in.get ("key");
   std::string clientName = in.get("client");
+  std::string fingerprint = txn.get_certificate_fingerprint();
 
   if (_log) {
     _log->format ("[%d] 'sync' from '%s/%s' using '%s' at %s:%d",
@@ -327,8 +334,20 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
     _log->format (
       "[%d] Certificate fingerprint: '%s'",
       _txn_count,
-      txn.get_certificate_fingerprint().c_str()
+      fingerprint.c_str()
     );
+    if(certificate_is_allowed_for_user(org, user, fingerprint)) {
+      _log->format (
+        "[%d] Certificate accepted.",
+        _txn_count
+      );
+    } else {
+      _log->format (
+        "[%d] Certificate not acceptable.",
+        _txn_count
+      );
+      throw std::string("The certificate you provided is not acceptable.");
+    }
   }
 
   // Redirect if instructed.
@@ -510,6 +529,69 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
       _txn_count
     );
   }
+}
+
+bool Daemon::certificate_is_allowed_for_user(
+    std::string org_name,
+    std::string user_name,
+    std::string fingerprint
+) {
+    bool success = false;
+    sqlite3 *db;
+    sqlite3_stmt * pStmt;
+    
+    std::string db_path = getenv("CERTIFICATE_DB");
+    int rc = sqlite3_open(db_path.c_str(), &db);
+    if(rc != SQLITE_OK) {
+        throw std::string("Error opening CERTIFICATE_DB");
+    }
+
+    std::string sql = 
+        "SELECT 1 "
+        "FROM certificate "
+        "INNER JOIN credential "
+        "    ON credential.user_key = certificate.user_key "
+        "WHERE "
+        "    credential.org_name = ? "
+        "    AND credential.user_name = ? "
+        "    AND certificate.fingerprint = ? "
+        "    AND certificate.revoked IS NULL "
+        ";"
+    ;
+    int prepRet;
+    prepRet = sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &pStmt, NULL);
+    if(prepRet != SQLITE_OK) {
+        throw std::string("Error preparing statement for CERTIFICATE_DB");
+    }
+
+    prepRet = sqlite3_bind_text(pStmt, 1, org_name.c_str(), org_name.length(), NULL);
+    if(prepRet != SQLITE_OK) {
+        throw std::string("Error preparing statement for CERTIFICATE_DB (1)");
+    }
+
+    prepRet = sqlite3_bind_text(pStmt, 2, user_name.c_str(), user_name.length(), NULL);
+    if(prepRet != SQLITE_OK) {
+        throw std::string("Error preparing statement for CERTIFICATE_DB (2)");
+    }
+
+    prepRet = sqlite3_bind_text(pStmt, 3, fingerprint.c_str(), fingerprint.length(), NULL);
+    if(prepRet != SQLITE_OK) {
+        throw std::string("Error preparing statement for CERTIFICATE_DB (3)");
+    }
+
+    int result = sqlite3_step(pStmt);
+    if (result == SQLITE_ROW) {
+        success = true;
+    } else if (result == SQLITE_DONE) {
+        success = false;
+    } else {
+        throw std::string("Error running CERTIFICATE_DB query");
+    }
+
+    sqlite3_finalize(pStmt);
+    sqlite3_close(db);
+
+    return success;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -142,6 +142,11 @@ find_package(redox REQUIRED)
 set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${REDOX_INCLUDE_DIR})
 set(TASKD_LIBRARIES ${TASKD_LIBRARIES} ${REDOX_LIBRARY})
 
+message ("-- Looking for Sqlite3")
+find_package(Sqlite3 REQUIRED)
+set(TASKD_INCLUDE_DIRS ${TASKD_INCLUDE_DIRS} ${SQLITE3_INCLUDE_DIR})
+set(TASKD_LIBRARIES ${TASKD_LIBRARIES} ${SQLITE3_LIBRARIES})
+
 message ("-- Looking for JsonCpp")
 find_package(JsonCpp REQUIRED)
 find_path(
