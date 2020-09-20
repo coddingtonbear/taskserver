@@ -522,6 +522,8 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
     );
     rdx.publish(queue, message);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(10))
+
     rdx.disconnect();
   } else {
     _log->format(
