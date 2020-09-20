@@ -494,7 +494,7 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
   }
 
   timer.stop();
-  redox::Redox rdx;
+  redox::Redox rdx(std::cout, redox::log::Debug);
   if(rdx.connect(getenv("REDIS_HOST"), 6379)){
     Json::Value description;
     description["action"] = "sync";
