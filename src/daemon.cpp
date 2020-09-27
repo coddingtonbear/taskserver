@@ -67,6 +67,7 @@ class Daemon : public Server
 public:
   Daemon (Config&);
   void handler (const TLSTransaction& txn, const std::string& input, std::string& output);
+  bool emit_event(const std::string& queue, const std::string& message);
 
 private:
   void handle_statistics (const TLSTransaction& txn, const Msg&, Msg&);
@@ -119,6 +120,32 @@ Daemon::Daemon (Config& settings)
 , _bytes_in (0)
 , _bytes_out (0)
 {
+}
+
+bool Daemon::emit_event(const std::string& queue, const std::string& message) {
+  redox::Redox rdx(std::cout, redox::log::Info);
+  if(rdx.connect(getenv("REDIS_HOST"), 6379)){
+    _log->format(
+      "[%d] Emitting notification to redis via %s",
+      _txn_count,
+      queue.c_str()
+    );
+    rdx.publish(queue, message);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    rdx.disconnect();
+
+    return true;
+  } else {
+    _log->format(
+      "[%d] Could not connect to redis; not emitting message vis %s",
+      _txn_count,
+      queue.c_str()
+    );
+
+    return false;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -336,16 +363,52 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
       _txn_count,
       fingerprint.c_str()
     );
+
+    Json::Value description;
+    description["username"] = user;
+    description["org"] = org;
+    description["client"] = clientName;
+    description["ip"] = _client_address;
+    description["port"] = _client_port;
+    description["fingerprint"] = fingerprint;
+    description["certificate_recognized"] = true;
+    description["certificate_accepted"] = true;
     if(certificate_is_allowed_for_user(org, user, fingerprint)) {
       _log->format (
-        "[%d] Certificate accepted.",
+        "[%d] Certificate recognized and accepted.",
         _txn_count
       );
     } else {
-      _log->format (
-        "[%d] Certificate not acceptable.",
-        _txn_count
-      );
+      description["certificate_recognized"] = false;
+
+      // We don't have fingerprints for all certificates users have
+      // generated over the years; so for the moment, let's not reject
+      // ones we're not expecting until we know what fingerprints are in
+      // use for each users.  The certificates _have_ to have been signed
+      // by the inthe.am root certificate to make it this far; so this
+      // isn't quite as sketchy as it sounds.  In the future, we'll
+      // provide a UI allowing you to create/deauthorize old certificates
+      // as if they were regular 'ole API keys.
+      if(_config.getBoolean("inthe_am.reject_unrecognized_certificates")) {
+        description["certificate_accepted"] = false;
+        _log->format (
+          "[%d] Certificate not recognized and rejected; set 'inthe_am.reject_unrecognized_certificates' to 'off' to accept in the future.",
+          _txn_count
+        );
+      } else {
+        _log->format (
+          "[%d] Certificate not recognized but accepted; set 'inthe.am.reject_unrecognized_certificates' to 'on' to reject in the future.",
+          _txn_count
+        );
+      }
+    }
+
+    Json::StreamWriterBuilder builder;
+    const std::string message = Json::writeString(builder, description);
+    const std::string queue = "taskd.certificate." + user;
+    emit_event(queue, message);
+
+    if (! description["certificate_accepted"]) {
       throw std::string("The certificate you provided is not acceptable.");
     }
   }
@@ -494,43 +557,26 @@ void Daemon::handle_sync (const TLSTransaction& txn, const Msg& in, Msg& out)
   }
 
   timer.stop();
-  redox::Redox rdx(std::cout, redox::log::Info);
-  if(rdx.connect(getenv("REDIS_HOST"), 6379)){
-    Json::Value description;
-    description["action"] = "sync";
-    description["username"] = user;
-    description["org"] = org;
-    description["client"] = clientName;
-    description["ip"] = _client_address;
-    description["port"] = _client_port;
-    description["client_key"] = client_key;
-    description["record_count"] = Json::Value::UInt64(server_data.size());
-    description["branch_point"] = client_key;
-    description["branch_record_count"] = branch_point;
-    description["delta_count"] = Json::Value::UInt64(server_subset.size());
-    description["stored_count"] = store_count;
-    description["merged_count"] = merge_count;
-    description["service_duration"] = timer.total();
-    Json::StreamWriterBuilder builder;
-    std::string message = Json::writeString(builder, description);
 
-    std::string queue = "sync." + user;
-    _log->format(
-      "[%d] Emitting sync notification to redis via %s",
-      _txn_count,
-      queue.c_str()
-    );
-    rdx.publish(queue, message);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-    rdx.disconnect();
-  } else {
-    _log->format(
-      "[%d] Could not connect to redis; not emitting sync message",
-      _txn_count
-    );
-  }
+  Json::Value description;
+  description["action"] = "sync";
+  description["username"] = user;
+  description["org"] = org;
+  description["client"] = clientName;
+  description["ip"] = _client_address;
+  description["port"] = _client_port;
+  description["client_key"] = client_key;
+  description["record_count"] = Json::Value::UInt64(server_data.size());
+  description["branch_point"] = client_key;
+  description["branch_record_count"] = branch_point;
+  description["delta_count"] = Json::Value::UInt64(server_subset.size());
+  description["stored_count"] = store_count;
+  description["merged_count"] = merge_count;
+  description["service_duration"] = timer.total();
+  Json::StreamWriterBuilder builder;
+  const std::string message = Json::writeString(builder, description);
+  const std::string queue = "sync." + user;
+  emit_event(queue, message);
 }
 
 bool Daemon::certificate_is_allowed_for_user(
