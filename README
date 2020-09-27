@@ -1,58 +1,18 @@
 Welcome To Taskserver
 ---------------------
 
-Taskserver is a daemon or service that will allow you to share tasks among
-different client applications, primarily Taskwarrior.
+This is an Inthe.AM-specific fork of the TaskServer;
+see the upstream repository at [GothenburgBitFactory/taskserver.git](https://github.com/GothenburgBitFactory/taskserver).
 
-Taskserver is compatible with Taskwarrior version 2.4.x and later, but works
-best with the latest Taskwarrior.
+Special Behaviors
+-----------------
 
-Taskserver is complex.  It is not for anyone who is unfamiliar with the
-operation of daemons.
-
-
-Easiest Setup
--------------
-
-There is a setup script that will lead you through all necessary steps to setup
-the Taskserver, create certs, configure a client and sync:
-
-  $ script/setup_server.bash
-
-Alternately there is online documentation that will lead you through the
-separate steps:
-
-  http://taskwarrior.org/docs/taskserver/setup.html
-
-
-Documentation
--------------
-
-Most of the documentation has been moved online, so we can continually improve
-it:
-
-  http://taskwarrior.org/docs/
-
-In addition there are two man pages installed:
-
-  taskd(1)
-  taskdctl(1)
-  taskdrc(5)
-
-
-Known Issues
-------------
-
-Please see this page for a list of issues, and their status:
-
-  Taskwarrior         https://bug.tasktools.org/browse/TW
-  Taskserver          https://bug.tasktools.org/browse/TD
-
-
-Feedback
---------
-
-Your feedback is welcomed and encouraged.  Please send it to:
-
-  support@taskwarrior.org
-
+- Uses an external sqlite3 certificate registry for mapping user accounts to
+  specific certificates.
+- Emits events on a Redis pubsub queue for communicating with other services
+  including:
+  - `sync.<username>`: Emitted when a user synchronizes.  Includes a payload
+    including performance and troubleshooting information.
+  - `taskd.certificate.<username>`: Emitted when verifying a user's presented
+    certifiate.  Includes information about whether that certificate was
+    recognized and accepted.
