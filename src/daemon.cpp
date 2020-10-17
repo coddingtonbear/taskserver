@@ -123,7 +123,7 @@ Daemon::Daemon (Config& settings)
 }
 
 bool Daemon::emit_event(const std::string& queue, const std::string& message) {
-  redox::Redox rdx(std::cout, redox::log::Info);
+  redox::Redox rdx(std::cout);
   if(rdx.connect(getenv("REDIS_HOST"), 6379)){
     _log->format(
       "[%d] Emitting notification to redis via %s",
